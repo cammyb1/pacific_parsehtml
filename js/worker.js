@@ -5,6 +5,9 @@ var base_model = {
     es:{
       reading:{}
     },
+    en:{},
+    fr:{},
+    ge:{}
   }
 }
 
@@ -19,7 +22,9 @@ function loadPage(){
 }
 
 function stripTags(value){
-  return value.replace(/(<([^>]+)>)/ig,"")
+  let div = document.createElement("div")
+  div.innerHTML = value
+  return div.textContent || div.innerText
 }
 
 function insertInto(a, b, position){
@@ -35,10 +40,33 @@ function countWordsOf(value){
   return value.trim().replace(regex, ' ').split(' ').length;
 }
 
-function textBetweenTags(value){
-  var regex = /(<([^>]+)>)(.*?)(<([^>]+)>)/g
+function stripRedValues(value, tag){
+  let div = document.createElement("div")
+  div.innerHTML = value
 
-  return value.replace(regex, '/')
+  let tagElements = div.getElementsByTagName(tag)
+
+  for(let ind of tagElements){
+    if(ind.style.color=="rgb(255, 0, 0)") {
+      console.log(ind.innerHTML)
+      ind.remove()
+    }
+  }
+
+  return div.innerHTML
+}
+
+function checkForIcon(line){
+  let data = null
+  ICON_NAMES.map((icon, index) => {
+    if(line.includes(icon)){
+      data={
+        striped:line.replace(icon, ICONS[index])
+      }
+    }
+  })
+
+  return data
 }
 
 function handleValue(value, result){
@@ -46,28 +74,29 @@ function handleValue(value, result){
 
   let lines = value.split("\n")
   let filtered = lines.filter(line => line!== "")
+  let includeGreen = false
+  let includeRed = false
 
   for (let ind= 0 ; ind < filtered.length; ind++){
 
-    //CITA
-    if (filtered[ind].includes("<p>&ldquo;")){
-      let icon = "<pacific-icon-cita></pacific-icon-cita>"
-      filtered[ind] = insertInto(filtered[ind], icon, 3)
+    //hasIcon
+    let icon = checkForIcon(filtered[ind])
+    if (icon){
+      filtered[ind] = icon.striped
     }
 
     //REMOVE RED WORDS
-    if (filtered[ind].includes("color: #ff0000")){
-      let badWords = textBetweenTags(filtered[ind]).split("/").filter(l =>{
-        return l!=="" && filtered[ind].includes("color: #ff0000;\">"+l)
-      })
+    includeRed = filtered[ind].includes("color: #ff0000")
 
-      filtered[ind] = stripTags(filtered[ind])
-      badWords.map(word => filtered[ind] = filtered[ind].replace(word, ''))
-
-      filtered[ind] = envolveByTag("p", filtered[ind])
+    if (includeRed){
+      filtered[ind] = stripRedValues(filtered[ind], "span")
     }
 
-    if(filtered[ind].includes("color: #00b050")){
+    POSIBLE_GREENS.map(green => {
+      includeGreen = filtered[ind].includes("color: "+green)
+    })
+
+    if(includeGreen){
       filtered[ind] = stripTags(filtered[ind])
       filtered[ind] = envolveByTag("p", filtered[ind])
     }
